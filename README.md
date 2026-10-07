@@ -30,16 +30,37 @@ Este proyecto evalúa la severidad de la quema en el Parque Nacional Blue Mounta
 
 ## Datos Utilizados
 
-| Parámetro | Especificación |
-|-----------|----------------|
-| Misión | Sentinel-2 MSI (MultiSpectral Instrument) |
-| Nivel de procesamiento | Level-2A (BOA - Bottom-Of-Atmosphere) |
-| Teselas MGRS | T56HKH y T56HKJ |
-| Fecha pre-incendio (t1) | 27 de septiembre de 2019 |
-| Fecha post-incendio (t2) | 19 de febrero de 2020 |
-| Bandas utilizadas | B02, B03, B04, B08, B12 |
-| Proyección | GDA2020 / MGA zone 56 (EPSG:7856) |
-| Plataforma de descarga | Copernicus Data Space Ecosystem |
+| Parámetro                | Especificación                            |
+| ------------------------ | ----------------------------------------- |
+| Misión                   | Sentinel-2 MSI (MultiSpectral Instrument) |
+| Nivel de procesamiento   | Level-2A (BOA - Bottom-Of-Atmosphere)     |
+| Teselas MGRS             | T56HKH y T56HKJ                           |
+| Fecha pre-incendio (t1)  | 27 de septiembre de 2019                  |
+| Fecha post-incendio (t2) | 19 de febrero de 2020                     |
+| Bandas utilizadas        | B02, B03, B04, B08, B12                   |
+| Proyección               | GDA2020 / MGA zone 56 (EPSG:7856)         |
+| Plataforma de descarga   | Copernicus Data Space Ecosystem           |
+
+---
+
+## Acceso a las Capas del Proyecto
+
+Todas las capas del proyecto (originales, mosaicos, recortes, NBR, dNBR y severidad) se encuentran alojadas en Google Drive debido a su tamaño (algunos archivos superan 1GB). Este es el **medio principal de descarga** para el proyecto.
+
+🔗 **[Descargar Capas del Proyecto](https://drive.google.com/drive/folders/18ocPg6jwTcxh4KBdHqUr4ZonwC6s2EwE?usp=sharing)**
+
+**Contenido en Drive:**
+
+- `1. Capas Originales/` — Bandas B02, B03, B04, B08 y B12 de Sentinel-2 (t1 y t2)
+- `2.1 Mosaicos Iniciales/` — Mosaicos por banda
+- `2.2 Mosaicos Recortados/` — Mosaicos recortados al ROI
+- `2.3 Mosaicos Terminados/` — Ráster multibanda unificado
+- `2.4 Mosaicos NBR y dNBR/` — Índices y clases de severidad
+
+**Fechas de referencia:**
+
+- t1 (pre-incendio): 27 de septiembre de 2019
+- t2 (post-incendio): 19 de febrero de 2020
 
 ---
 
@@ -78,8 +99,8 @@ El proyecto sigue un flujo de trabajo estructurado en cinco fases:
 
 ## Referencias
 
-- BoM (2020). *Black Summer* — Bureau of Meteorology, Australia.
+- BoM (2020). _Black Summer_ — Bureau of Meteorology, Australia.
 - Abatzoglou et al. (2021). Anthropogenic influences on Australian wildfires.
 - Filkov et al. (2020). Impact of Australia's catastrophic 2019/20 bushfires.
 - Key & Benson (2006). Landscape Assessment: Ground measure of severity, the Composite Burn Index.
-- Lillesand et al. (2015). *Remote Sensing and Image Interpretation*.
+- Lillesand et al. (2015). _Remote Sensing and Image Interpretation_.
