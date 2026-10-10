@@ -1,0 +1,397 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[spanish, es-tabla]{babel}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=2cm}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={Evaluación de Severidad de Quema en el Parque Nacional Blue Mountains (Black Summer 2019-2020) mediante Sentinel-2 y QGIS}
+}
+
+% Configuración para código y fórmulas lógicas
+\lstset{
+    breaklines=true,
+    basicstyle=\ttfamily\footnotesize,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{teal}
+}
+
+\title{Análisis Multitemporal del Evento Black Summer en Australia 2019-2020 mediante Teledetección Satelital en QGIS}
+\author{
+  \small
+  Sara Castro, Maria Alejandra Garcia, Juan David Ortiz, Eliana Pardo, Ana Maria Romero
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introducción y Contextualización del Evento}
+Durante el periodo estival 2019--2020, el este y sureste de Australia sufrieron el colapso ecológico y forestal más crítico documentado en la historia moderna del continente, conocido internacionalmente como el evento de megaincendios del ``Black Summer'' \cite{boM2020blacksummer}. Esta catástrofe fue propiciada por un clima extremo, caracterizado por una sequía plurianual sostenida y condiciones fuertemente positivas del Dipolo del Océano Índico (IOD) sumadas a fases anómalas del Modo Anular del Sur (SAM), lo cual redujo drásticamente el contenido de humedad del suelo y de la biomasa leñosa en la Gran Cordillera Divisoria \cite{abatzoglou2021anthropogenic, vanoldenborgh2021pathways}. En total, más de 24 millones de hectáreas fueron consumidas en todo el país, emitiendo pirocúmulos de humo que alcanzaron la estratosfera e impactando críticamente la biodiversidad y cuencas hidrográficas \cite{filkov2020impact, bowman2021pyrogeographic}.
+
+Dentro del estado de Nueva Gales del Sur (NSW), uno de los eventos individuales más desastrosos fue el megaincendio de Gospers Mountain, iniciado por la caída de un rayo el 26 de octubre de 2019. Este fuego avanzó descontroladamente a través de gargantas y macizos escarpados, llegando a consumir más de 510.000 hectáreas y arrasando aproximadamente el 80\% de la superficie protegida del Área de Patrimonio Mundial de las Blue Mountains \cite{hamilton2020ecological}. 
+
+En este contexto, la teledetección espacial y los Sistemas de Información Geográfica (SIG) constituyen herramientas indispensables para cuantificar y caracterizar espacialmente las perturbaciones por fuego sobre los ecosistemas forestales \cite{lillesand2015remote}. Con esto en mente, el propósito fundamental de este proyecto consiste en evaluar la severidad de la quema y el grado de afectación en el dosel vegetal del Parque Nacional Blue Mountains (NSW) a raíz del megaincendio de Gospers Mountain. Mediante el procesamiento digital de imágenes satelitales Sentinel-2 calibradas a nivel de reflectancia de fondo de atmósfera (BOA), el estudio se enfoca de manera exclusiva en la dinámica radiométrica del fuego y las afectaciones que ocasiono.
+
+\section{Región de Interés (ROI) y Caso de Estudio}
+El área de estudio se enfoca sobre el sector central y norte del Parque Nacional Blue Mountains, como se muestra en la Figura \ref{fig:parque_contexto}, colindante con el sector de Gospers Mountain y el cañón del río Grose en Nueva Gales del Sur. La región se caracteriza por mesetas elevadas de arenisca de Hawkesbury, profundos valles labrados y bosques densos de eucalipto seco y húmedo (\textit{Eucalyptus} spp.) con una carga de combustible excepcionalmente inflamable bajo temperaturas superiores a 40~$^\circ$C \cite{hamilton2020ecological}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.68\textwidth]{12. Area del Parque Blue Mountains.jpg}
+    \caption{Delimitación del Parque Nacional Blue Mountains}
+    \label{fig:parque_contexto}
+\end{figure}
+
+Dado que el parque cubre un área extensa y de geometría irregular, se decidió acotar el análisis a una Región de Interés (ROI) rectangular diagonal. Esta forma permite abarcar de manera continua el corredor por donde avanzó el frente de fuego del complejo Gospers Mountain, concentrando el gradiente de severidad sobre el dosel forestal y evitando incluir zonas no afectadas que aumentarían el costo computacional sin aportar información relevante.
+
+\section{Fase 1: Definición del Problema y Adquisición de Datos}
+
+\subsection{Criterios de Selección Temporal ($t_1$ y $t_2$)}
+Para este análisis multitemporal de detección de cambios por perturbación de fuego sea estadísticamente válido y físicamente comparable, es necesario establecer dos ventanas temporales:
+\begin{enumerate}
+    \item \textbf{Línea Base Pre-incendio ($t_1$ -- 27 de septiembre de 2019):} Se descartó el mes de octubre ya que, aunque el foco puntual de Gospers Mountain inició el 26 de octubre, a mediados de mes la región circundante de NSW ya presentaba fuegos tempranos y aerosoles atmosféricos dispersos que alteran la respuesta espectral en el visible y NIR \cite{vanoldenborgh2021pathways}. El 27 de septiembre es una línea base de referencia correspondiente a la primavera austral, con el dosel vegetal en condición de vigor no calcinado y la atmósfera enteramente despejada de nubes y humo.
+    
+    \item \textbf{Condición Post-incendio ($t_2$ -- 19 de febrero de 2020):} Corresponde a la ventana inmediata posterior a la extinción del megaincendio. A inicios y mediados de febrero de 2020, precipitaciones torrenciales de gran escala apagaron definitivamente los frentes residuales y lavaron las partículas de humo de la columna atmosférica. Esta fecha permite la visualización directa y descubierta del carbón, las cenizas y el dosel colapsado.
+\end{enumerate}
+
+\subsection{Plataforma y Ficha Técnica de las Escenas Satelitales}
+Las imágenes fueron adquiridas a través del portal de acceso abierto \textit{Copernicus Data Space Ecosystem} (CDSE) de la Agencia Espacial Europea (ESA). A diferencia de misiones de resolución media como Landsat (30 m), la misión \textbf{Sentinel-2 (MSI)} ofrece bandas con tamaño de celda de 10 m y 20 m, permitiendo un nivel de detalle cartográfico superior.
+
+\begin{table}[H]
+    \centering
+    \caption{Parámetros técnicos de las adquisiciones satelitales Sentinel-2 MSI.}
+    \label{tab:metadatos_s2}
+    \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Parámetro} & \textbf{Especificación Técnica} \\
+        \midrule
+        Misión y Sensor & Sentinel-2 MSI (\textit{MultiSpectral Instrument}) \\
+        Plataforma de Descarga & Copernicus Data (\url{https://dataspace.copernicus.eu/}) \\
+        Nivel de Procesamiento & Level-2A (BOA - \textit{Bottom-Of-Atmosphere Surface Reflectance}) \\
+        Teselas de la Grilla MGRS & \textbf{T56HKH} (sector central/sur) y \textbf{T56HKJ} (sector septentrional) \\
+        Fecha Pre-incendio ($t_1$) & 27 de septiembre de 2019 \\
+        Fecha Post-incendio ($t_2$) & 19 de febrero de 2020 \\
+        Proyección de Trabajo & GDA2020 / MGA zone 56 (EPSG:7856) \\
+        Bandas Utilizadas & B02 (Azul), B03 (Verde), B04 (Rojo), B08 (NIR) y B12 (SWIR-2) \\
+        Cobertura Nubosa en ROI & Cobertura marginal evaluada con capa de clasificación de escena \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Necesidad Metodológica de Cobertura Multi-Tesela}
+Al contrastar el área geográfica del parque Blue Mountains con la partición en teselas de la grilla, se observó que esta no puede ser cubierta por una única escena, como se ve en la Figura \ref{fig:seleccion_poligono_general}. Por lo tanto, se deben tomar dos divisiones, presentadas en la Figura \ref{fig:teselas_compartidas}, de esta formala reserva queda dividida en la frontera entre la tesela inferior \textbf{T56HKH} y la tesela superior \textbf{T56HKJ}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{1. Seleccion Poligono Blue Mountains.jpg}
+    \caption{Identificación del área de Blue Mountains sobre la plataforma Copernicus.}
+    \label{fig:seleccion_poligono_general}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{2. Zona con teselas compartidas.jpg}
+    \caption{Intercepción espacial del área de interés sobre dos teselas adyacentes.}
+    \label{fig:teselas_compartidas}
+\end{figure}
+
+Por consiguiente, en el panel lateral de búsqueda de Copernicus se seleccionaron explícitamente ambas escenas (Figuras \ref{fig:panel_teselas} y \ref{fig:especificacion_teselas}) para cada una de las dos fechas evaluadas, descargando los paquetes completos en formato SAFE Nivel-2A.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.52\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{3. Selección de teselas en panel lateral.jpg}
+        \caption{Selección de las escenas correspondientes a la zona de estudio.}
+        \label{fig:panel_teselas}
+    \end{minipage}\hfill
+    \begin{minipage}{0.42\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{4. Especificacion de teselas.jpg}
+        \caption{Inspección de metadatos de las teselas T56HKH y T56HKJ.}
+        \label{fig:especificacion_teselas}
+    \end{minipage}
+\end{figure}
+
+\section{Fase 2: Preprocesamiento y Rásters Resultantes}
+Para garantizar que las imágenes de $t_1$ y $t_2$ sean completamente funcionales para el posterior entrenamiento y análisis de indices espectrales, se ejecutó la siguiente secuencia de pasos.
+
+\subsection{Carga de Bandas Espectrales y Corrección Atmosférica}
+Las bandas espectrales seleccionadas para cada fecha fueron cargadas en el panel de capas de QGIS, ver Figura \ref{fig:capas_qgis}, incluyendo Azul (B02), Verde (B03), Rojo (B04), Infrarrojo Cercano (B08) e Infrarrojo de Onda Corta (B12).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{5 Capas en QGIS.jpg}
+    \caption{Carga de las bandas individuales de Sentinel-2 en QGIS.}
+    \label{fig:capas_qgis}
+\end{figure}
+
+\subsection{Ensamblaje de Mosaicos Espaciales por Banda}
+Dado que el área del parque se distribuye entre T56HKH y T56HKJ, el primer geoprocesamiento consistió en unir cada par de teselas para una misma banda y fecha. Para ello se recurrió a la herramienta Combinar, accesible en el menú \texttt{Ráster $\rightarrow$ Miscelánea $\rightarrow$ Combinar}, como se observa en la Figura \ref{fig:opcion_combinar}, donde se seleccionaron las teselas que iban a ser fusionadas (Figura \ref{fig:seleccion_mosaico}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{6. Opcion Combinar para Mosaicos.jpg}
+    \caption{Ubicación de la herramienta Combinar en QGIS.}
+    \label{fig:opcion_combinar}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{7. Seleccion de capas para Mosaico.jpg}
+    \caption{Selección de teselas contiguas de una misma banda espectral.}
+    \label{fig:seleccion_mosaico}
+\end{figure}
+
+El proceso se ejecutó individualmente agrupando las dos teselas correspondientes a B02, B03, B04, B08 y B12, tanto para la fecha previa ($t_1$) como para la posterior ($t_2$). Como resultado se obtuvo un conjunto de mosaicos continuos sobre el área del parque, tal como ilustra la Figura \ref{fig:mosaicos_creados}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{8. Mosaicos Creados.jpg}
+    \caption{Mosaicos continuos generados para cada banda espectral en el panel de capas.}
+    \label{fig:mosaicos_creados}
+\end{figure}
+
+\subsection{Reproyección al Sistema Oficial Australiano (EPSG:7856)}
+Para este caso, se adoptó el sistema de referencia oficial vigente para el sureste australiano: \textbf{GDA2020 / MGA zone 56 (EPSG:7856)} (Figura \ref{fig:uso_epsg}). Los mosaicos generados fueron reproyectados a este estándar cartográfico métrico transversal de Mercator (Figura \ref{fig:proyeccion_mosaicos}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{9. Uso de ESPG7856.jpg}
+    \caption{Configuración del sistema proyectado GDA2020 / MGA zone 56.}
+    \label{fig:uso_epsg}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{10. Proyeccion de mosaicos a ESPG7856.jpg}
+    \caption{Reproyección de las capas ráster al sistema métrico oficial.}
+    \label{fig:proyeccion_mosaicos}
+\end{figure}
+
+\subsection{Remuestreo Espacial de la Banda B12 (SWIR-2)}
+En Copernicus se adquieren las bandas B02, B03, B04 y B08 con un tamaño de celda de 10 metros, mientras que la banda B12 (SWIR-2), necesaria para el índice NBR, se captura únicamente a 20 metros \cite{drusch2012sentinel2}. Para permitir la conformación del ráster multibanda, la banda B12 fue remuestreada a una resolución espacial de 10,0 metros, como se observa en la Figura \ref{fig:remuestreo_b12} mediante la opción de cambio de resolución en la opción de exporta.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{16. Pasar Moisaico de B08 a 10m.jpg}
+    \caption{Ajuste de 10 metros para B12}
+    \label{fig:remuestreo_b12}
+\end{figure}
+
+\subsection{Delimitación Vectorial y Recorte por Capa de Máscara (ROI)}
+Con el fin de acotar el dominio computacional y concentrar el análisis sobre Blue Mountains, se creó una nueva capa vectorial de tipo polígono en formato GeoPackage, utilizando la herramienta de creación de capas y conmutación de edición de QGIS, ver Figura \ref{fig:creacion_roi}. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{13. Opcion para crear poligono ROI.jpg}
+    \caption{Creación del archivo vectorial GeoPackage para la ROI.}
+    \label{fig:creacion_roi}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{14. Area de recorte sobre mosaico.jpg}
+    \caption{Superposición del polígono de recorte sobre el mosaico continuo.}
+    \label{fig:area_recorte_roi}
+\end{figure}
+
+El polígono fue trazado para abarcar toda la zona del parque, como se observar en la Figura \ref{fig:area_recorte_roi}. Posteriormente, se utilizó la herramienta cortar ráster por capa de máscara (\texttt{Ráster $\rightarrow$ Extracción $\rightarrow$ Cortar ráster por capa de máscara}), delimitando cada uno de los mosaicos espectrales a la geometría exacta del vector (Figura \ref{fig:recorte_aplicado}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{15. Recorte aplicado sobre un mosaico.jpg}
+    \caption{Ejecución del recorte espacial utilizando la máscara vectorial.}
+    \label{fig:recorte_aplicado}
+\end{figure}
+
+\subsection{Apilado Multibanda}
+Una vez recortados los mosaicos individuales de cada banda (B02, B03, B04, B08 y B12), se procedió a su apilado en un único ráster mediante la herramienta de combinar ráster, como se ilustra en la Figura \ref{fig:union_mosaicos}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{17. Union de Mosaicos para raster general.jpg}
+    \caption{Integración de las 5 bandas espectrales en un ráster virtual continuo.}
+    \label{fig:union_mosaicos}
+\end{figure}
+
+El orden espectral estructurado en la pila multicapa resultante fue:
+\begin{itemize}
+    \item \texttt{Banda 1 (@1):} B02 (Azul -- 10 m)
+    \item \texttt{Banda 2 (@2):} B03 (Verde -- 10 m)
+    \item \texttt{Banda 3 (@3):} B04 (Rojo -- 10 m)
+    \item \texttt{Banda 4 (@4):} B08 (Infrarrojo Cercano NIR -- 10 m)
+    \item \texttt{Banda 5 (@5):} B12 (Infrarrojo de Onda Corta SWIR-2 -- 10 m)
+\end{itemize}
+
+\subsection{Gestión de Valores Nulos (\texttt{NoData})}
+ Debido a la inclinación geométrica del polígono de corte, el cuadro delimitador rectangular de la matriz ráster rellena automáticamente el espacio sobrante con píxeles de valor 0, creando franjas negras, como se ve en la Figura \ref{fig:raster_nulos}. Estos píxeles de valor 0 alteran los contrastes de visualización y falsean el cálculo de índices espectrales.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{18. Resultado de Raster general con nulos.jpg}
+    \caption{Ráster con bordes negros.}
+    \label{fig:raster_nulos}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{19. Eliminacion de borde negro-nulos con traductor raster.jpg}
+    \caption{Configuración de la herramienta Traducir asignando NoData = 0.}
+    \label{fig:traductor_nodata}
+\end{figure}
+
+Para corregir este problema, se empleó la herramienta Traducir ráster (\texttt{Ráster $\rightarrow$ Conversión $\rightarrow$ Traducir}), estableciendo explícitamente el parámetro \textbf{Assign a specified NoData value to output bands = 0}, como se observa en la Figura \ref{fig:traductor_nodata}. Esta operación transforma de manera estándar todas las celdas nulas exteriores en valores \texttt{NaN} transparentes, conservando únicamente la información del polígono delimitador (Figura \ref{fig:raster_limpio}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{20. Capa Raster Limpia-sin nulos.jpg}
+    \caption{Ráster multibanda libre de bordes oscuros.}
+    \label{fig:raster_limpio}
+\end{figure}
+
+\section{Fase 3: Post-Procesamiento y Evaluación de Severidad}
+
+\subsection{Cálculo del Normalized Burn Ratio (NBR)}
+El índice NBR aprovecha el contraste espectral opuesto entre el infrarrojo cercano y el infrarrojo de onda corta ante la combustión vegetal. En vegetación sana y vigorosa, el NIR es marcadamente elevado por la refracción múltiple en la pared celular y el SWIR es bajo debido al contenido de agua foliar. Por el contrario, en un área quemada, el NIR colapsa por la destrucción del dosel y el SWIR se incrementa fuertemente por la pérdida de humedad y la presencia de sustrato calcinado.
+
+\begin{equation}
+    \text{NBR} = \frac{\text{NIR} - \text{SWIR2}}{\text{NIR} + \text{SWIR2}} = \frac{\text{B08} - \text{B12}}{\text{B08} + \text{B12}}
+\end{equation}
+
+Empleando la calculadora ráster (Figura \ref{fig:calculo_nbr}), y tomando como referencia las bandas apiladas (\texttt{@4} para NIR y \texttt{@5} para SWIR-2), se calculó el índice de manera independiente para ambas fechas:
+
+\vspace{0.6cm}
+\textbf{NBR Pre-incendio ($t_1$)}
+\begin{equation}
+    \text{NBR}_{t_1} = \frac{\text{Mosaico\_Before\_Completo@4} - \text{Mosaico\_Before\_Completo@5}}{\text{Mosaico\_Before\_Completo@4} + \text{Mosaico\_Before\_Completo@5}}
+\end{equation}
+
+\vspace{0.3cm}
+\textbf{NBR Post-incendio ($t_2$)}
+\begin{equation}
+    \text{NBR}_{t_2} = \frac{\text{Mosaico\_After\_Completo@4} - \text{Mosaico\_After\_Completo@5}}{\text{Mosaico\_After\_Completo@4} + \text{Mosaico\_After\_Completo@5}}
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{21. Calculo de NBR.jpg}
+    \caption{Implementación de la fórmula de NBR en la Calculadora ráster.}
+    \label{fig:calculo_nbr}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{22. Capa Resultante NBR.jpg}
+    \caption{Ráster continuo de NBR generado para la escena de estudio.}
+    \label{fig:capa_nbr}
+\end{figure}
+
+El resultado generado, ver Figura \ref{fig:capa_nbr}, exhibe valores continuos entre $-1$ y $+1$, donde las zonas de tonalidades oscuras evidencian una severa pérdida de biomasa fotosintéticamente activa.
+
+\subsection{Cálculo del differenced Normalized Burn Ratio (dNBR)}
+La severidad del fuego y el consumo de la masa vegetal se determinan calculando el \textit{differenced NBR} ($\text{dNBR}$), definido como la sustracción temporal entre la línea base y la condición posterior:
+
+\begin{equation}
+    \text{dNBR} = \text{NBR}_{\text{Before}} - \text{NBR}_{\text{After}} = \text{NBR}_{t_1} - \text{NBR}_{t_2}
+\end{equation}
+
+En la calculadora ráster (Figura \ref{fig:calculo_dnbr}), se ejecutó la operación:
+
+\begin{equation}
+    \text{dNBR} = \text{NBR\_Before@1} - \text{NBR\_After@1}
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{23. Calculo dNBR.jpg}
+    \caption{Expresión de sustracción temporal para la obtención del dNBR.}
+    \label{fig:calculo_dnbr}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{24. dNBR resultante.jpg}
+    \caption{Ráster continuo de dNBR resaltando las cicatrices del incendio.}
+    \label{fig:dnbr_resultante}
+\end{figure}
+
+En el ráster resultante de dNBR (Figura \ref{fig:dnbr_resultante}), los píxeles con valores cercanos a cero o ligeramente negativos representan coberturas inalteradas, zonas no forestales o procesos de rebrote fenológico menor. Por el contrario, los valores positivos elevados denotan la magnitud del daño por calcinación directa del estrato arbóreo.
+
+\subsection{Reclasificación del dNBR por Umbrales del USGS}
+Para la interpretación de la severidad de la quema, se adoptó el estándar internacional de severidad de quema definido por el Servicio Geológico de los Estados Unidos (\textit{USGS}) \cite{key2006landscape}. Dicho estándar discretiza el $\text{dNBR}$ en cuatro niveles categóricos:
+
+\begin{table}[H]
+    \centering
+    \caption{Intervalos estandarizados de severidad de quema del USGS.}
+    \label{tab:umbrales_usgs}
+    \begin{tabular}{@{}ccl@{}}
+        \toprule
+        \textbf{Rango dNBR} & \textbf{Código Entero} & \textbf{Clase / Nivel de Severidad} \\
+        \midrule
+        $\text{dNBR} < 0{,}10$ & 1 & No quemado / Sin daño / Rebrote \\
+        $0{,}10 \le \text{dNBR} < 0{,}27$ & 2 & Severidad baja (\textit{Low Severity}) \\
+        $0{,}27 \le \text{dNBR} < 0{,}66$ & 3 & Severidad moderada (\textit{Moderate Severity}) \\
+        $\text{dNBR} \ge 0{,}66$ & 4 & Severidad alta (\textit{High Severity}) \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+ Mediante la calculadora ráster (Figura \ref{fig:calculo_severidad}), se aplicó una expresión booleana condicionada. Cada intervalo se evalúa como una proposición lógica binaria (verdadero = 1, falso = 0), multiplicándose por su correspondiente código entero (1, 2, 3 o 4) y sumando los términos resultantes:
+
+\begin{align}
+\text{Clase} &= (\text{dNBR} < 0.10) \cdot 1 \nonumber \\
+&\quad + (0.10 \leq \text{dNBR} < 0.27) \cdot 2 \nonumber \\
+&\quad + (0.27 \leq \text{dNBR} < 0.66) \cdot 3 \nonumber \\
+&\quad + (\text{dNBR} \geq 0.66) \cdot 4
+\end{align}
+
+Para tener una mejor visualización de los umbrales, en las propiedades de la capa resultante, se configuró el renderizador Paleta / Valores únicos y se clasificaron las cuatro entidades, como se observa en la Figura \ref{fig:asignacion_colores}. Se adoptó la una paleta de tal forma que:
+\begin{itemize}
+    \item \textbf{Clase 1 (No quemado):} Verde. Áreas donde la vegetación permaneció intacta o el impacto fue mínimo, conservando la estructura del dosel y la cobertura del suelo.
+    \item \textbf{Clase 2 (Baja severidad):} Amarillo. Zonas con quema superficial del sotobosque, donde el dosel superior se mantiene en pie y la afectación se limita a estratos inferiores.
+    \item \textbf{Clase 3 (Moderada severidad):} Naranja. Áreas con chamuscado del dosel y colapso de copas intermedias, donde la vegetación presenta pérdida significativa de follaje pero conserva algunos individuos en pie.
+    \item \textbf{Clase 4 (Alta severidad):} Rojo oscuro. Zonas de combustión total, con exposición de suelo calcinado, ceniza superficial y pérdida completa de la cobertura vegetal.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{26. Asignación de colores para clases de severidad.jpg}
+    \caption{Asignación de la rampa de color temática en QGIS.}
+    \label{fig:asignacion_colores}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{27. Capa resultante para clases de severidad.jpg}
+    \caption{Mapa temático discreto de severidad de quema del megaincendio.}
+    \label{fig:capa_severidad_final}
+\end{figure}
+
+La distribución obtenida, observada en la Figura \ref{fig:capa_severidad_final} exhibe nítidamente la huella del megaincendio de Gospers Mountain sobre el Parque Nacional Blue Mountains. A diferencia de zonas montañosas de pastizal alpino donde el dNBR no suele superar los 0,31, la masa boscosa de eucaliptos de Blue Mountains presenta extensos núcleos contiguos clasificados en severidad baja, moderada y alta (clases 2, 3 y 4), reflejando la combustión catastrófica del dosel qué en su mayoría es moderada.
+
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}
