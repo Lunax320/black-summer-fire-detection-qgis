@@ -338,6 +338,14 @@ En la calculadora ráster (Figura \ref{fig:calculo_dnbr}), se ejecutó la operac
 
 En el ráster resultante de dNBR (Figura \ref{fig:dnbr_resultante}), los píxeles con valores cercanos a cero o ligeramente negativos representan coberturas inalteradas, zonas no forestales o procesos de rebrote fenológico menor. Por el contrario, los valores positivos elevados denotan la magnitud del daño por calcinación directa del estrato arbóreo.
 
+\subsection{Clasificación Supervisada Multiespectral (SCP)}
+
+\section{Fase 4: Post-procesamiento y Discusión}
+
+\subsection{Validación y Evaluación de Exactitud}
+
+\subsection{Mapas Temáticos de Cobertura}
+
 \subsection{Reclasificación del dNBR por Umbrales del USGS}
 Para la interpretación de la severidad de la quema, se adoptó el estándar internacional de severidad de quema definido por el Servicio Geológico de los Estados Unidos (\textit{USGS}) \cite{key2006landscape}. Dicho estándar discretiza el $\text{dNBR}$ en cuatro niveles categóricos:
 
@@ -390,6 +398,139 @@ Para tener una mejor visualización de los umbrales, en las propiedades de la ca
 
 La distribución obtenida, observada en la Figura \ref{fig:capa_severidad_final} exhibe nítidamente la huella del megaincendio de Gospers Mountain sobre el Parque Nacional Blue Mountains. A diferencia de zonas montañosas de pastizal alpino donde el dNBR no suele superar los 0,31, la masa boscosa de eucaliptos de Blue Mountains presenta extensos núcleos contiguos clasificados en severidad baja, moderada y alta (clases 2, 3 y 4), reflejando la combustión catastrófica del dosel qué en su mayoría es moderada.
 
+\subsection{Vectorización de la Cicatriz de Quema}
+Para convertir el ráster de severidad en polígonos y posteriormente realizar análisis espacial, se aplicó el proceso de poligonización sobre el producto reclasificado.
+
+El proceso consistió en usar la herramienta \texttt{Poligonizar ráster a vectorial} (\texttt{Ráster $\rightarrow$ Conversión $\rightarrow$ Poligonizar}) tomando como entrada el ráster cáculado anteriormente para observar la severidad de la quema por clase, ver Figura \ref{fig:config_poligonizar}. En los parámetros se asignó el campo \texttt{clase\_id} para guardar los códigos del USGS (1, 2, 3 o 4) y se guardó la salida en formato GeoPackage. El resultado fue una malla densa de polígonos que reproduce el contorno de cada parche espectral, como se observa en la Figura \ref{fig:capa_vectorial_raw}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{28. Configuracion de poligonizar.jpg}
+    \caption{Parámetros de configuración en la herramienta Poligonizar (ráster a vectorial).}
+    \label{fig:config_poligonizar}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{29. Capa vectorial resultante de poligonizar.jpg}
+    \caption{Malla vectorial de polígonos continuos generada sobre el área de estudio.}
+    \label{fig:capa_vectorial_raw}
+\end{figure}
+
+Con la capa vectorial lista, se activó el modo edición en la tabla de atributos y, usando la Calculadora de campos, se crearon dos atributos para categorizar y medir el área:
+
+\begin{enumerate}
+    \item \textbf{Campo \texttt{severidad} (texto, longitud 30):} Se usó una estructura condicional (Figura \ref{fig:campo_severidad}) para asociar cada código numérico del USGS con su nombre correspondiente:
+    \begin{equation}
+    \text{severidad} =
+    \begin{cases}
+    \text{'No quemado'} & \text{si } \texttt{clase\_id} = 1 \\
+    \text{'Baja severidad'} & \text{si } \texttt{clase\_id} = 2 \\
+    \text{'Moderada severidad'} & \text{si } \texttt{clase\_id} = 3 \\
+    \text{'Alta severidad'} & \text{si } \texttt{clase\_id} = 4 \\
+    \text{'Sin datos'} & \text{en otro caso}
+    \end{cases}
+    \end{equation}
+
+    \item \textbf{Campo \texttt{area\_ha} (decimal, precisión 3):} Como el sistema de coordenadas es métrico (EPSG:7856), se calculó el área de cada polígono en hectáreas, como se puede observar en la Figura \ref{fig:campo_area}, dividiendo el área planar entre 10,000:
+    \begin{equation}
+        \text{area\_ha} = \frac{\text{\$area}}{10000}
+    \end{equation}
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{30. Creacion de campo severidad.jpg}
+    \caption{Asignación del atributo cualitativo de severidad mediante sentencia lógica.}
+    \label{fig:campo_severidad}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{31. Creacion de campo area.jpg}
+    \caption{Cómputo geométrico de superficie en hectáreas (\$area / 10000).}
+    \label{fig:campo_area}
+\end{figure}
+
+La tabla de atributos resultante, ver Figura \ref{fig:tabla_atributos} muestra las 983,060 entidades vectorizadas, cada una con su identificador único (\texttt{fid}), clase numérica (\texttt{clase\_id}), categoría temática (\texttt{severidad}) y área en hectáreas (\texttt{area\_ha}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{32. Tabla de atributos resultante.jpg}
+    \caption{Vista de la tabla de atributos enriquecida con los atributos de severidad y área.}
+    \label{fig:tabla_atributos}
+\end{figure}
+
+Con el fin de obtener únicamente la con la huella más destructiva del incendio y descartar el ruido de quemas superficiales, se aplicó el algoritmo \texttt{Extraer por atributo} (\texttt{Caja de herramientas de Procesos $\rightarrow$ Selección vectorial}) sobre la capa base. En la configuración del filtro, ver Figura, \ref{fig:extraccion_atributo} se usó el campo \texttt{clase\_id}, el operador \texttt{>} y el valor \texttt{2}:
+\begin{equation}
+    \texttt{"clase\_id"} > 2
+\end{equation}
+
+Lo cuál excluye las zonas no perturbadas (clase 1) y de impacto bajo (clase 2), dejando únicamente las clases severidad moderada (clase 3) y deveridad alta (clase 4). La capa resultante se exportó como geopackage.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{33. Extracción por atributo.jpg}
+    \caption{Configuración del filtro booleano (clase\_id > 2) para aislar la cicatriz crítica.}
+    \label{fig:extraccion_atributo}
+\end{figure}
+
+Como se ve en la Figura \ref{fig:cicatriz_final}, la capa filtrada resultante delimita con precisión el área de mayor combustión y colapso de biomasa a lo largo de las mesetas y cañones del parque, y sirve como fuente principal para el cálculo de estadísticas de afectación.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{34. Cicatriz de Blue Mountains.jpg}
+    \caption{Delimitación vectorial final de la cicatriz de quema crítica en Blue Mountains.}
+    \label{fig:cicatriz_final}
+\end{figure}
+
+\subsection{Análisis Estadístico de Áreas}
+Con el fin de cuantificar el área total del cambio detectado, se aplicó un análisis espacial sobre las entidades vectoriales de la cicatriz de quema calculada anteriormente.
+
+Para esto, se usó la herramienta de estadísticas por categorías (\texttt{Vectorial $\rightarrow$ Herramientas de análisis $\rightarrow$ Estadísticas por categorías}) sobre la capa filtrada, configurando el campo \texttt{severidad} como categoría y el campo \texttt{area\_ha} como variable numérica (Figura \ref{fig:config_estadisticas_cat}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{35. Estadisticas por categoría.jpg}
+    \caption{Configuración del geoprocesamiento de Estadísticas por categorías en QGIS.}
+    \label{fig:config_estadisticas_cat}
+\end{figure}
+
+Como se ve en la Figura \ref{fig:tabla_area_severidad}, el algoritmo identificó las dos clases que superaron el umbral ($\text{clase\_id} > 2$): \textbf{Moderada severidad} (208.725 polígonos) y \textbf{Alta severidad} (6.830 polígonos).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.99\textwidth]{36. Resultado calculo de área.jpg}
+    \caption{Tabla de salida con recuento y métricas de superficie por clase.}
+    \label{fig:tabla_area_severidad}
+\end{figure}
+
+A partir de la sumatoria calculada para cada categoría, se determinó el área total afectada en hectáreas y kilómetros cuadrados, usando la conversión estándar:
+\begin{equation}
+    \text{Área ($km^2$)} = \frac{\text{Área ($ha$)}}{100}
+\end{equation}
+
+En la Tabla \ref{tab:resumen_areas_quema} se sintetiza la distribución del área afectada por el fuego.
+
+\begin{table}[H]
+    \centering
+    \caption{Cuantificación superficial de la cicatriz de quema crítica en Blue Mountains.}
+    \label{tab:resumen_areas_quema}
+    \begin{tabular}{@{}lcrrr@{}}
+        \toprule
+        \textbf{Nivel de Severidad} & \textbf{Código USGS} & \textbf{Polígonos} & \textbf{Superficie ($ha$)} & \textbf{Superficie ($km^2$)} \\
+        \midrule
+        Moderada severidad & 3 & 208.725 & 202.871,44 & 2.028,71 \\
+        Alta severidad     & 4 & 6.830   & 357,59     & 3,58     \\
+        \midrule
+        \textbf{Total núcleo crítico ($> 2$)} & \textbf{3 y 4} & \textbf{215.555} & \textbf{203.229,03} & \textbf{2.032,29} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Los resultados muestran que el megaincendio afectó más de 203.229 hectáreas de manera considerable ($> 2$), concentrando el 99,82\% de este daño en la categoría de severidad moderada. La clase de alta severidad, aunque presente, ocupó una fracción mínima del área total (357,59 ha). 
+
+\subsection{Discusión y Contexto Socioambiental}
 
 \bibliographystyle{plain}
 \bibliography{referencias}
