@@ -48,7 +48,14 @@
 \section{Introducción y Contextualización del Evento}
 Durante el periodo estival 2019--2020, el este y sureste de Australia sufrieron el colapso ecológico y forestal más crítico documentado en la historia moderna del continente, conocido internacionalmente como el evento de megaincendios del ``Black Summer'' \cite{boM2020blacksummer}. Esta catástrofe fue propiciada por un clima extremo, caracterizado por una sequía plurianual sostenida y condiciones fuertemente positivas del Dipolo del Océano Índico (IOD) sumadas a fases anómalas del Modo Anular del Sur (SAM), lo cual redujo drásticamente el contenido de humedad del suelo y de la biomasa leñosa en la Gran Cordillera Divisoria \cite{abatzoglou2021anthropogenic, vanoldenborgh2021pathways}. En total, más de 24 millones de hectáreas fueron consumidas en todo el país, emitiendo pirocúmulos de humo que alcanzaron la estratosfera e impactando críticamente la biodiversidad y cuencas hidrográficas \cite{filkov2020impact, bowman2021pyrogeographic}.
 
-Dentro del estado de Nueva Gales del Sur (NSW), uno de los eventos individuales más desastrosos fue el megaincendio de Gospers Mountain, iniciado por la caída de un rayo el 26 de octubre de 2019. Este fuego avanzó descontroladamente a través de gargantas y macizos escarpados, llegando a consumir más de 510.000 hectáreas y arrasando aproximadamente el 80\% de la superficie protegida del Área de Patrimonio Mundial de las Blue Mountains \cite{hamilton2020ecological}. 
+Dentro del estado de Nueva Gales del Sur (NSW), uno de los eventos individuales más desastrosos fue el megaincendio de Gospers Mountain, iniciado por la caída de un rayo el 26 de octubre de 2019. Este fuego avanzó descontroladamente a través de gargantas y macizos escarpados, llegando a consumir más de 510.000 hectáreas y arrasando aproximadamente el 80\% de la superficie protegida del Área de Patrimonio Mundial de las Blue Mountains \cite{hamilton2020ecological}. La magnitud del fuego fue ampliamente documentada por medios de comunicación y comisiones de investigación (Figura \ref{fig:impacto_terreno_gospers}), evidenciando en tierra el comportamiento extremo de las llamas y la calcinación directa del estrato arbóreo frente a los equipos de emergencia.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{38.-black-summer-img.jpg}
+    \caption{Black Summer en Nueva Gales del Sur. Fuente: ABC News Australia \cite{abc2023gospers}.}
+    \label{fig:impacto_terreno_gospers}
+\end{figure}
 
 En este contexto, la teledetección espacial y los Sistemas de Información Geográfica (SIG) constituyen herramientas indispensables para cuantificar y caracterizar espacialmente las perturbaciones por fuego sobre los ecosistemas forestales \cite{lillesand2015remote}. Con esto en mente, el propósito fundamental de este proyecto consiste en evaluar la severidad de la quema y el grado de afectación en el dosel vegetal del Parque Nacional Blue Mountains (NSW) a raíz del megaincendio de Gospers Mountain. Mediante el procesamiento digital de imágenes satelitales Sentinel-2 calibradas a nivel de reflectancia de fondo de atmósfera (BOA), el estudio se enfoca de manera exclusiva en la dinámica radiométrica del fuego y las afectaciones que ocasiono.
 
@@ -365,7 +372,7 @@ Para la interpretación de la severidad de la quema, se adoptó el estándar int
     \end{tabular}
 \end{table}
 
- Mediante la calculadora ráster (Figura \ref{fig:calculo_severidad}), se aplicó una expresión booleana condicionada. Cada intervalo se evalúa como una proposición lógica binaria (verdadero = 1, falso = 0), multiplicándose por su correspondiente código entero (1, 2, 3 o 4) y sumando los términos resultantes:
+ Mediante la calculadora ráster se aplicó una expresión booleana condicionada. Cada intervalo se evalúa como una proposición lógica binaria (verdadero = 1, falso = 0), multiplicándose por su correspondiente código entero (1, 2, 3 o 4) y sumando los términos resultantes:
 
 \begin{align}
 \text{Clase} &= (\text{dNBR} < 0.10) \cdot 1 \nonumber \\
@@ -397,6 +404,15 @@ Para tener una mejor visualización de los umbrales, en las propiedades de la ca
 \end{figure}
 
 La distribución obtenida, observada en la Figura \ref{fig:capa_severidad_final} exhibe nítidamente la huella del megaincendio de Gospers Mountain sobre el Parque Nacional Blue Mountains. A diferencia de zonas montañosas de pastizal alpino donde el dNBR no suele superar los 0,31, la masa boscosa de eucaliptos de Blue Mountains presenta extensos núcleos contiguos clasificados en severidad baja, moderada y alta (clases 2, 3 y 4), reflejando la combustión catastrófica del dosel qué en su mayoría es moderada.
+
+Finalmente, para de consolidar los resultados obtenidos, se diseñó un print layout, como se ve en la Figura \ref{fig:layout_umbrales}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{37. Umbrales Print Layout.jpg}
+    \caption{Print Layout de reclasificación del dNBR por umbrales del USGS}
+    \label{fig:layout_umbrales}
+\end{figure}
 
 \subsection{Vectorización de la Cicatriz de Quema}
 Para convertir el ráster de severidad en polígonos y posteriormente realizar análisis espacial, se aplicó el proceso de poligonización sobre el producto reclasificado.
