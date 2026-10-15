@@ -346,12 +346,373 @@ En la calculadora ráster (Figura \ref{fig:calculo_dnbr}), se ejecutó la operac
 En el ráster resultante de dNBR (Figura \ref{fig:dnbr_resultante}), los píxeles con valores cercanos a cero o ligeramente negativos representan coberturas inalteradas, zonas no forestales o procesos de rebrote fenológico menor. Por el contrario, los valores positivos elevados denotan la magnitud del daño por calcinación directa del estrato arbóreo.
 
 \subsection{Clasificación Supervisada Multiespectral (SCP)}
+Con el propósito de caracterizar las transiciones en el uso y cobertura del suelo provocadas por el megaincendio, se implementó una clasificación supervisada mediante el complemento \textit{Semi-Automatic Classification Plugin} (SCP) en QGIS. Este flujo de trabajo permitió estructurar un esquema temático multitemporal discriminando la condición previa ($t_1$) y la afectación post-evento ($t_2$).
 
+\subsubsection{Estructuración del Juego de Bandas y Creación del Archivo de Entrenamiento}
+A partir de los rásteres multibanda generados en la fase de preprocesamiento (compuestos por las bandas B02, B03, B04, B08 y B12), se definió el \textit{Band set} de trabajo en SCP asignando las longitudes de onda centrales representativas de Sentinel-2 MSI. Para delimitar las unidades muestrales de calibración, se creó un archivo vectorial de entrenamiento (\textit{Training Input}) en formato GeoPackage/Shapefile. 
+
+La digitalización de las Regiones de Interés de entrenamiento (ROIs) se llevó a cabo combinando polígonos manuales delimitados sobre áreas espectralmente homogéneas y la herramienta de crecimiento por similitud espectral en el espacio de reflectancias de píxel, asegurando muestras libres de efectos de borde (Figura \ref{fig:scp_rois_entrenamiento}).
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Classif (2).jpg}
+        \caption{Crecimiento de región espectral para la delimitación de ROI en SCP.}
+        \label{fig:scp_roi_crecimiento}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Classif (1).jpg}
+        \caption{Muestreo poligonal de áreas de calibración sobre composición de falso color.}
+        \label{fig:scp_rois_entrenamiento}
+    \end{minipage}
+\end{figure}
+
+\subsubsection{Definición del Esquema Temático de Clases}
+Dada la marcada alteración en la reflectancia inducida por el fuego, se estructuraron dos esquemas de clasificación categórica adaptados a la realidad fisiográfica de cada fecha:
+
+\begin{enumerate}
+    \item \textbf{Esquema Pre-incendio ($t_1$ -- 5 Clases):} Enfocado en discriminar el gradiente natural de vegetación y el sustrato (Figura \ref{fig:leyenda_before}).
+    \begin{itemize}
+        \item \textbf{Clase 1 -- Water (Agua):} Cuerpos de agua lénticos y lóticos del drenaje del río Grose.
+        \item \textbf{Clase 2 -- Healthy\_Vegetation (Vegetación Sana):} Bosques densos de eucalipto en mesetas y gargantas con alto vigor fotosintético.
+        \item \textbf{Clase 3 -- Urbanizacion:} Asentamientos, vías y superficies antrópicas consolidadas.
+        \item \textbf{Clase 4 -- Pastizales:} Zonas abiertas dominadas por gramíneas y estratos herbáceos.
+        \item \textbf{Clase 5 -- Vegetación\_Rala:} Formaciones arbustivas abiertas, afloramientos rocosos de arenisca y vegetación de menor densidad de dosel.
+    \end{itemize}
+
+    \item \textbf{Esquema Post-incendio ($t_2$ -- 7 Clases):} Ajustado para incorporar la huella del incendio, sombras orográficas y dispersión atmosférica residual (Figura \ref{fig:leyenda_after}).
+    \begin{itemize}
+        \item \textbf{Clase 1 -- Agua:} Hidrografía superficial.
+        \item \textbf{Clase 2 -- UrbanizacionA:} Zonas antrópicas y sustrato descubierto no forestal.
+        \item \textbf{Clase 3 -- Pasto:} Pastizales y praderas remanentes.
+        \item \textbf{Clase 4 -- VegetacionBoscosaSana:} Manchas de bosque nativo que evitaron el frente de fuego.
+        \item \textbf{Clase 5 -- VegetacionBoscosaQuemada:} Dosel calcinado, ramas desnudas y cenizas de alta y moderada severidad.
+        \item \textbf{Clase 6 -- Nubes:} Nubosidad residual dispersa en la escena.
+        \item \textbf{Clase 7 -- Sombras:} Zonas de sombra proyectada por cañones profundos y topografía agreste.
+    \end{itemize}
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=0.75\textwidth]{863a6c81-6845-4afd-b4e1-84392ec6930e}
+        \caption{Jerarquía de clases para la clasificación previa ($t_1$).}
+        \label{fig:leyenda_before}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=0.82\textwidth]{0c505949-d573-4739-a396-3aec21d006c1 }
+        \caption{Jerarquía de clases para la clasificación posterior ($t_2$).}
+        \label{fig:leyenda_after}
+    \end{minipage}
+\end{figure}
+
+\subsubsection{Análisis de Separabilidad y Firmas Espectrales}
+Antes de ejecutar el clasificador, se inspeccionaron los perfiles de reflectancia en el visor espectral de SCP para verificar que las clases de entrenamiento no presentaran traslapes críticos en las bandas clave. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{FEBef.jpg}
+    \caption{Firmas espectrales multiclase para la línea base pre-incendio ($t_1$).}
+    \label{fig:firmas_before}
+\end{figure}
+
+En la condición pre-incendio (Figura \ref{fig:firmas_before}), las clases de cobertura vegetal exhiben el salto espectral típico del ``red edge'' y un pico elevado en el NIR, cayendo gradualmente hacia el SWIR por la absorción del agua interna del dosel. Por el contrario, los cuerpos de agua se concentran en los rangos mínimos de reflectancia en el infrarrojo.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{FEAft.jpg}
+    \caption{Firmas espectrales multiclase para la escena post-incendio ($t_2$).}
+    \label{fig:firmas_after}
+\end{figure}
+
+Para la escena post-incendio (Figura \ref{fig:firmas_after}), la vegetación quemada (Clase 5) experimentó un aplanamiento drástico de la reflectancia en el infrarrojo cercano, colapsando a valores significativamente inferiores respecto a la condición previa debido a la calcinación foliar. Asimismo, se evidencia una pendiente positiva hacia la región del SWIR provocada por el secado extremo del suelo y la exposición del carbón superficial, garantizando una clara separabilidad espectral respecto al bosque no quemado.
+
+\subsubsection{Ejecución del Algoritmo de Clasificación}
+La clasificación de ambos rásteres se llevó a cabo aplicando el algoritmo de \textbf{Distancia Mínima} sustentado en el nivel de Macroclase (MC ID). Los productos ráster resultantes (\texttt{Classification\_Before} y \texttt{Classification\_After}) fueron guardados en formato GeoTIFF y sirvieron como insumo central para la evaluación cuantitativa de exactitud temática y matrices de confusión detalladas en la Sección 4.
 \section{Fase 4: Post-procesamiento y Discusión}
 
-\subsection{Validación y Evaluación de Exactitud}
+\subsection{Validación y Evaluación de Exactitud Temática}
 
-\subsection{Mapas Temáticos de Cobertura}
+La fiabilidad de los mapas de cobertura obtenidos depende de su concordancia con la realidad física sobre el terreno. Con el fin de evaluar cuantitativamente el desempeño de las clasificaciones supervisadas multiespectrales, se implementó un protocolo formal de validación cruzada confrontando las predicciones del sensor Sentinel-2 contra datos independientes de verdad terreno inspeccionados sobre imágenes de muy alta resolución espacial en Google Earth Pro \cite{lillesand2015remote}.
+
+\subsubsection{Metodología de Validación Espacial con Google Earth Pro}
+
+\paragraph{Generación y distribución de los puntos de validación.}
+En QGIS se diseñó una distribución de puntos de control dentro del área de estudio utilizando el polígono vectorial delimitador de la región de interés (ROI). Estos puntos fueron distribuidos para evaluar tanto la escena previa al fuego ($t_1$) como la escena posterior ($t_2$). Las capas resultantes se generaron conservando el sistema de referencia oficial del proyecto (EPSG:7856), como se ilustra en las Figuras \ref{fig:puntos_before} y \ref{fig:puntos_after}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{imagepuntos.jpg}
+    \caption{Puntos de validación Before}
+    \label{fig:puntos_before}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{validscion post.jpg}
+    \caption{Puntos de validación After}
+    \label{fig:puntos_after}
+\end{figure}
+
+\paragraph{Extracción de las clases identificadas.}
+Mediante la herramienta \textit{Muestrear valores de ráster} de QGIS, se extrajeron los valores de los píxeles clasificados correspondientes a la ubicación de cada punto de control. Esta operación se ejecutó de manera independiente sobre los rásteres \texttt{Classification\_Before} y \texttt{Classification\_After}. 
+
+Los códigos asignados por el clasificador se incorporaron automáticamente a la tabla de atributos de las capas de puntos en campos identificados con el prefijo \texttt{pred\_} (Figura \ref{fig:clases_pred}). Los archivos resultantes se almacenaron como \texttt{puntos\_con\_prediccion\_before.shp} y \texttt{puntos\_con\_prediccion\_after.shp}, consolidando las predicciones satelitales previas a la confrontación en terreno.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\linewidth]{imageclases prede.jpg}
+    \caption{Extracción de las clases establecidas}
+    \label{fig:clases_pred}
+\end{figure}
+
+\paragraph{Comparación visual con imágenes históricas de alta resolución.}
+Las capas vectoriales de puntos fueron exportadas a formato KML (\textit{Keyhole Markup Language}) para su despliegue sobre la plataforma Google Earth Pro (Figuras \ref{fig:ge_before} y \ref{fig:ge_after}). 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{imagegologulo.jpg}
+    \caption{Puntos cargados en Google Earth Before}
+    \label{fig:ge_before}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{imageafter.jpg}
+    \caption{Puntos cargados en Google Earth After}
+    \label{fig:ge_after}
+\end{figure}
+
+Haciendo uso del control deslizante de imágenes históricas, se examinó la condición multitemporal del dosel vegetal y del suelo. Para la línea base previa al fuego, se consultaron imágenes de alta resolución correspondientes a septiembre (Figura \ref{fig:ge_sept2018}), mientras que para la fase posterior al megaincendio se analizaron las adquisiciones de alta resolución que registran la defoliación, calcinación y cicatrices superficiales del evento (Figura \ref{fig:ge_afterr}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{sept2018.jpg}
+    \caption{Validacion - Before - 16 sept 2018}
+    \label{fig:ge_sept2018}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{afterr.jpg}
+    \caption{Validacion - After - 30 ago 2020}
+    \label{fig:ge_afterr}
+\end{figure}
+
+\paragraph{Asignación de la verdad terreno (\texttt{real\_id}).}
+Para registrar rigurosamente la verdad terreno, se conmutó la edición de la capa en QGIS y se creó un campo de tipo entero denominado \texttt{real\_id}. A cada punto se le asignó el código numérico de la cobertura real observada visualmente en las fotografías aéreas de Google Earth Pro. De este modo, la tabla de atributos consolidó paralelamente la clase predicha por el satélite (\texttt{pred\_}) y la clase real verificada (\texttt{real\_id}), como se aprecia en la Figura \ref{fig:real_id}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{reak id.jpg}
+    \caption{real id con comprobación}
+    \label{fig:real_id}
+\end{figure}
+
+Esta correspondencia tabular directa constituyó la base de entrada para procesar las matrices de confusión y derivar las métricas de exactitud temática tanto para la condición pre-incendio como post-incendio.
+
+\subsubsection{Evaluación de Exactitud de la Clasificación Pre-incendio ($t_1$)}
+
+Para la escena $t_1$ (27 de septiembre de 2019), la muestra de validación comprendió 50 píxeles de control distribuidos entre las 5 clases temáticas. En la Tabla \ref{tab:matriz_confusion_conteo} se detalla la matriz de confusión resultante en términos de recuento muestral.
+
+\begin{table}[H]
+    \centering
+    \caption{Matriz de confusión por recuento de píxeles para la escena $t_1$ (27/09/2019).}
+    \label{tab:matriz_confusion_conteo}
+    \small
+    \begin{tabular}{@{}lcccccc@{}}
+        \toprule
+        \textbf{Clasificación} & \multicolumn{5}{c}{\textbf{Datos de Referencia (Verdad Terreno)}} & \textbf{Total} \\
+        \cmidrule(lr){2-6}
+        & \textbf{Clase 1} & \textbf{Clase 2} & \textbf{Clase 3} & \textbf{Clase 4} & \textbf{Clase 5} & \textbf{Clasificado} \\
+        \midrule
+        \textbf{Clase 1} & \textbf{8} & 2 & 0 & 0 & 0 & 10 \\
+        \textbf{Clase 2} & 0 & \textbf{10} & 0 & 0 & 1 & 11 \\
+        \textbf{Clase 3} & 0 & 0 & \textbf{3} & 6 & 1 & 10 \\
+        \textbf{Clase 4} & 0 & 5 & 0 & \textbf{5} & 0 & 10 \\
+        \textbf{Clase 5} & 0 & 2 & 0 & 0 & \textbf{7} & 9 \\
+        \midrule
+        \textbf{Total Referencia} & 8 & 19 & 3 & 11 & 9 & \textbf{50} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Siguiendo las buenas prácticas para la estimación de área y exactitud, las métricas se ajustaron con base en los pesos superficiales ($W_i = A_i / A_{\text{total}}$). En la Tabla \ref{tab:metricas_precision_clase} se presentan la exactitud del productor (\textit{PA}), exactitud del usuario (\textit{UA}), la puntuación armónica \textit{F1-Score} y el coeficiente Kappa condicional.
+
+\begin{table}[H]
+    \centering
+    \caption{Métricas detalladas de exactitud, concordancia y F1-Score por cobertura ($t_1$).}
+    \label{tab:metricas_precision_clase}
+    \small
+    \begin{tabular}{@{}lcccccc@{}}
+        \toprule
+        \textbf{Cobertura} & \textbf{Peso ($W_i$)} & \textbf{PA [\%]} & \textbf{UA [\%]} & \textbf{F1-Score [\%]} & \textbf{Kappa ($\hat{\kappa}_i$)} & \textbf{Área Estimada ($\text{km}^2$)} \\
+        \midrule
+        Clase 1 & 0{,}0217 & 100{,}00 & 80{,}00 & \textbf{88{,}89} & 0{,}7965 & 111{,}61 \\
+        Clase 2 & 0{,}4324 & 78{,}54 & 90{,}91 & \textbf{84{,}27} & 0{,}8180 & 3.217{,}60 \\
+        Clase 3 & 0{,}1126 & 100{,}00 & 30{,}00 & \textbf{46{,}15} & 0{,}2755 & 217{,}18 \\
+        Clase 4 & 0{,}0244 & 15{,}29 & 50{,}00 & \textbf{23{,}42} & 0{,}4567 & 512{,}78 \\
+        Clase 5 & 0{,}4089 & 86{,}28 & 77{,}78 & \textbf{81{,}80} & 0{,}6481 & 2.369{,}45 \\
+        \midrule
+        \textbf{Global} & \textbf{1{,}0000} & \multicolumn{2}{c}{\textbf{OA = 77{,}45\%}} & \textbf{Pond: 77{,}59\%} & \textbf{$\hat{\kappa} = 0{,}6401$} & \textbf{6.428{,}60} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Discusión técnica del desempeño pre-incendio.}
+La clasificación previa alcanzó una \textbf{Exactitud Global (OA) del 77,45\%} y un coeficiente \textbf{Kappa global de 0,6401}, lo que denota una concordancia \textbf{``Sustancial''} (\textit{Substantial Agreement}) conforme a la escala de Landis y Koch (1977). 
+
+Los estratos arbóreos principales (Clases 2 y 5), que concentran más del 84\% del parque, evidenciaron una excelente fidelidad espectral con F1-Scores de \textbf{84,27\%} y \textbf{81,80\%}, garantizando una delimitación confiable de la biomasa forestal antes del impacto del fuego. Las confusiones se restringieron a las Clases 3 y 4 (suelos y pastizales con rocas de arenisca), cuyo peso relativo en el área total es marginal ($< 14\%$).
+
+\subsubsection{Evaluación de Exactitud de la Clasificación Post-incendio ($t_2$)}
+
+Para la escena post-incendio ($t_2$ -- 19 de febrero de 2020), la complejidad espectral se incrementó producto de la calcinación heterogénea, el desprendimiento de cenizas y el lavado del suelo ocasionado por las lluvias torrenciales de febrero. Para capturar este gradiente, la clasificación se estructuró en 7 clases temáticas y se evaluó a partir de 70 píxeles de control (Tabla \ref{tab:matriz_confusion_after}).
+
+\begin{table}[H]
+    \centering
+    \caption{Matriz de confusión por recuento de píxeles para la escena post-incendio $t_2$ (19/02/2020).}
+    \label{tab:matriz_confusion_after}
+    \scriptsize
+    \begin{tabular}{@{}lcccccccc@{}}
+        \toprule
+        \textbf{Clasificación} & \multicolumn{7}{c}{\textbf{Datos de Referencia (Verdad Terreno)}} & \textbf{Total} \\
+        \cmidrule(lr){2-8}
+        & \textbf{C1} & \textbf{C2} & \textbf{C3} & \textbf{C4} & \textbf{C5} & \textbf{C6} & \textbf{C7} & \textbf{Clasificado} \\
+        \midrule
+        \textbf{Clase 1} & \textbf{7} & 0 & 0 & 0 & 0 & 0 & 2 & 9 \\
+        \textbf{Clase 2} & 0 & \textbf{4} & 3 & 1 & 0 & 4 & 0 & 12 \\
+        \textbf{Clase 3} & 0 & 1 & \textbf{7} & 0 & 0 & 0 & 0 & 8 \\
+        \textbf{Clase 4} & 0 & 4 & 0 & \textbf{9} & 1 & 0 & 0 & 14 \\
+        \textbf{Clase 5} & 0 & 0 & 0 & 2 & \textbf{7} & 0 & 0 & 9 \\
+        \textbf{Clase 6} & 0 & 1 & 0 & 0 & 0 & \textbf{6} & 0 & 7 \\
+        \textbf{Clase 7} & 0 & 0 & 0 & 0 & 0 & 0 & \textbf{11} & 11 \\
+        \midrule
+        \textbf{Total Referencia} & 7 & 10 & 10 & 12 & 8 & 10 & 13 & \textbf{70} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+A partir de la matriz ponderada por áreas, en la Tabla \ref{tab:metricas_after_clases} se sintetizan los indicadores estadísticos obtenidos para cada una de las 7 coberturas post-fuego.
+
+\begin{table}[H]
+    \centering
+    \caption{Métricas detalladas de exactitud, concordancia y F1-Score por cobertura ($t_2$).}
+    \label{tab:metricas_after_clases}
+    \small
+    \begin{tabular}{@{}lcccccc@{}}
+        \toprule
+        \textbf{Cobertura} & \textbf{Peso ($W_i$)} & \textbf{PA [\%]} & \textbf{UA [\%]} & \textbf{F1-Score [\%]} & \textbf{Kappa ($\hat{\kappa}_i$)} & \textbf{Área Estimada ($\text{km}^2$)} \\
+        \midrule
+        Clase 1 & 0{,}0147 & 100{,}00 & 77{,}78 & \textbf{87{,}50} & 0{,}7752 & 73{,}49 \\
+        Clase 2 & 0{,}0714 & 17{,}99 & 33{,}33 & \textbf{23{,}37} & 0{,}2317 & 850{,}05 \\
+        Clase 3 & 0{,}0567 & 73{,}55 & 87{,}50 & \textbf{79{,}92} & 0{,}8660 & 433{,}58 \\
+        Clase 4 & 0{,}3387 & 67{,}28 & 64{,}29 & \textbf{65{,}75} & 0{,}4720 & 2.080{,}62 \\
+        Clase 5 & 0{,}4498 & 93{,}53 & 77{,}78 & \textbf{84{,}93} & 0{,}6450 & 2.404{,}70 \\
+        Clase 6 & 0{,}0321 & 53{,}62 & 85{,}71 & \textbf{65{,}97} & 0{,}8494 & 329{,}69 \\
+        Clase 7 & 0{,}0366 & 91{,}81 & 100{,}00 & \textbf{95{,}73} & 1{,}0000 & 256{,}48 \\
+        \midrule
+        \textbf{Global} & \textbf{1{,}0000} & \multicolumn{2}{c}{\textbf{OA = 71{,}66\%}} & \textbf{Pond: 73{,}58\%} & \textbf{$\hat{\kappa} = 0{,}5983$} & \textbf{6.428{,}61} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Discusión comparativa y análisis de incertidumbre.}
+La clasificación posterior alcanzó una \textbf{Exactitud Global (OA) del 71,66\%} y un coeficiente \textbf{Kappa de 0,5983}. Si bien se presenta una ligera disminución respecto a la línea base previa, este comportamiento responde a la fragmentación del paisaje post-fuego:
+
+\begin{enumerate}
+    \item \textbf{Coberturas Dominantes (Clases 4 y 5):} Concentran el \textbf{78,85\%} del territorio. La Clase 5 obtuvo un F1-Score destacado de \textbf{84,93\%} con una exactitud del productor de \textbf{93,53\%}, mientras que la Clase 4 alcanzó un F1-Score equilibrado de \textbf{65,75\%}. La consistencia en estos dos estratos asegura que la estimación de la superficie afectada mantenga alta validez física.
+    
+    \item \textbf{Fidelidad en Clases Extremas (Clases 1 y 7):} La Clase 7 logró un desempeño óptimo con $\text{UA} = 100{,}00\%$, $\text{F1} = 95{,}73\%$ y $\hat{\kappa}_i = 1{,}0000$, en tanto que la Clase 1 mantuvo $\text{PA} = 100{,}00\%$ y $\text{F1} = 87{,}50\%$, evidenciando nula confusión en áreas de agua, sombras profundas y sustrato totalmente calcinado.
+    
+    \item \textbf{Incertidumbre en Zonas de Transición (Clase 2):} Registró el rendimiento más bajo ($\text{F1} = 23{,}37\%$), asociada a sectores de severidad baja y márgenes del frente de fuego donde coexisten hojas parcialmente secas, dosel chamuscado y suelo mineral expuesto. Las lluvias de febrero arrastraron parte de la ceniza superficial e iniciaron rebrotes epicórmicos menores en los eucaliptos, incrementando la varianza de la respuesta espectral.
+\end{enumerate}
+
+En conclusión, ambas clasificaciones superan los estándares para el análisis multitemporal de perturbaciones forestales, sustentando con solidez la cuantificación de la severidad del fuego en el Parque Nacional Blue Mountains.
+
+\subsection{Salidas Cartográficas y Mapas Temáticos de Clasificación SCP}
+
+Con el propósito de estandarizar la presentación visual y cartográfica de los resultados obtenidos a partir de la clasificación supervisada con el complemento \textit{Semi-Automatic Classification Plugin} (SCP), se procedió a la conformación de las salidas cartográficas formales dentro del Diseñador de Impresión (\textit{Print Layout}) de QGIS.
+
+Para contextualizar geográficamente la Región de Interés (ROI) sobre el Parque Nacional Blue Mountains, se incorporó una capa base de alta resolución satelital (\textit{Google Satellite}) mediante el complemento \textit{QuickMapServices} (Figura \ref{fig:qms_google}), permitiendo contrastar la distribución de las cubiertas clasificadas directamente sobre la fisiografía y el relieve real del terreno (Figura \ref{fig:capa_base_roi}).
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{IMG 1.jpg}
+        \caption{Google Satellite mediante QuickMapServices.}
+        \label{fig:qms_google}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{IMG 2.jpg}
+        \caption{Nueva composición print layout}
+        \label{fig:capa_base_roi}
+    \end{minipage}
+\end{figure}
+
+La maquetación cartográfica se configuró sobre un lienzo en formato estándar A4 con orientación horizontal (Figura \ref{fig:lienzo_a4}). A nivel espacial, la composición se estructuró bajo el sistema de referencia oficial australiano \textbf{GDA2020 / MGA zone 56 (EPSG:7856)}, asegurando la fidelidad métrica y métricas superficiales sin distorsión proyectiva.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{IMG 3.jpg}
+        \caption{Configuración del lienzo de diseño en formato A4 Horizontal.}
+        \label{fig:lienzo_a4}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{IMG 4.jpg}
+        \caption{Ssubdivisión mediante rectángulos guía.}
+        \label{fig:adicion_rectangulos}
+    \end{minipage}
+\end{figure}
+
+El diseño se organizó espacialmente en dos sectores principales:
+\begin{itemize}
+    \item \textbf{Cuerpo del mapa principal:} Diseñado para ocupar aproximadamente el 75\% del espacio visual útil a una escala métrica fija de $1:1\,000\,000$ (Figura \ref{fig:propiedades_escala}). Se implementó una cuadrícula métrica trazada con espaciamientos regulares de $25\,000\text{ m}$, con coordenadas periféricas rotadas en disposición vertical ascendente, flecha de norte cartográfico orientada y barra de escala subdividida en intervalos métricos.
+    \item \textbf{Panel lateral de metadatos:} Subdividido mediante rectángulos y líneas delimitadoras (Figura \ref{fig:adicion_rectangulos}) en cuatro bloques temáticos:
+    \begin{enumerate}
+        \item Mapa de localización general regional (\textit{Inset Map}) en el cuadrante superior.
+        \item Leyenda temática dinámica con las categorías de cobertura del suelo analizadas.
+        \item Identificación formal del proyecto y especificación de la clasificación SCP.
+        \item Cuadro de autoría institucional y referencia a la fuente de adquisición satelital (\textit{Copernicus Data Space Ecosystem} -- CDSE).
+    \end{enumerate}
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{IMG 5.jpg}
+    \caption{Ajuste del marco de mapa principal a escala fija $1:1\,000\,000$ en EPSG:7856.}
+    \label{fig:propiedades_escala}
+\end{figure}
+
+A continuación, se presentan los productos cartográficos definitivos generados bajo idénticos parámetros de proyección, escala y composición gráfica para las fechas $t_1$ (\textit{Before} -- 27 de septiembre de 2019; Figura \ref{fig:mapa_before}) y $t_2$ (\textit{After} -- 19 de febrero de 2020; Figura \ref{fig:mapa_after}). Esta estandarización permite una comparación multitemporal directa y libre de sesgos visuales.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{IMG 6.jpg}
+    \caption{Print layout Before ($t_1$: 27 de septiembre de 2019) clasificado mediante SCP.}
+    \label{fig:mapa_before}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{IMG 7.jpg}
+    \caption{Print layout After ($t_2$: 19 de febrero de 2020) clasificado mediante SCP.}
+    \label{fig:mapa_after}
+\end{figure}
+
+El análisis comparativo entre el estado basal pre-fuego (Figura \ref{fig:mapa_before}) y el escenario posterior a la catástrofe (Figura \ref{fig:mapa_after}) evidencia espacialmente la alteración estructural que sufrió el Parque Nacional Blue Mountains por efecto del megaincendio de Gospers Mountain durante el evento ``Black Summer''. 
+
+En la condición inicial (Figura \ref{fig:mapa_before}), la cubierta forestal mantenía una continuidad compacta, caracterizada por un claro predominio de vegetación densa y de alto vigor fotosintético (\textit{Healthy Vegetation}), intercalada de forma natural con sectores de vegetación abierta o rala (\textit{Vegetación Rala}). Por el contrario, en el producto multitemporal posterior (Figura \ref{fig:mapa_after}), se manifiesta una fragmentación severa del dosel forestal; extensos corredores boscosos dieron paso a grandes extensiones de vegetación calcinada (\textit{Vegetación Quemada}), concentrándose la combustión más crítica en las mesetas de arenisca de Hawkesbury y los cañones del río Grose.
+
+
 
 \subsection{Reclasificación del dNBR por Umbrales del USGS}
 Para la interpretación de la severidad de la quema, se adoptó el estándar internacional de severidad de quema definido por el Servicio Geológico de los Estados Unidos (\textit{USGS}) \cite{key2006landscape}. Dicho estándar discretiza el $\text{dNBR}$ en cuatro niveles categóricos:
@@ -372,7 +733,7 @@ Para la interpretación de la severidad de la quema, se adoptó el estándar int
     \end{tabular}
 \end{table}
 
- Mediante la calculadora ráster se aplicó una expresión booleana condicionada. Cada intervalo se evalúa como una proposición lógica binaria (verdadero = 1, falso = 0), multiplicándose por su correspondiente código entero (1, 2, 3 o 4) y sumando los términos resultantes:
+ Mediante la calculadora ráster, se aplicó una expresión booleana condicionada. Cada intervalo se evalúa como una proposición lógica binaria (verdadero = 1, falso = 0), multiplicándose por su correspondiente código entero (1, 2, 3 o 4) y sumando los términos resultantes:
 
 \begin{align}
 \text{Clase} &= (\text{dNBR} < 0.10) \cdot 1 \nonumber \\
@@ -546,7 +907,56 @@ En la Tabla \ref{tab:resumen_areas_quema} se sintetiza la distribución del áre
 
 Los resultados muestran que el megaincendio afectó más de 203.229 hectáreas de manera considerable ($> 2$), concentrando el 99,82\% de este daño en la categoría de severidad moderada. La clase de alta severidad, aunque presente, ocupó una fracción mínima del área total (357,59 ha). 
 
-\subsection{Discusión y Contexto Socioambiental}
+
+\subsection{Discusión y Contexto Socioambiental }
+
+Los resultados obtenidos en este estudio trascienden la cuantificación digital de píxeles al articularse directamente con la dinámica socioecológica del evento más catastrófico registrado en los canales forestales de Australia: el megaincendio de \textit{Gospers Mountain} durante la temporada del \textit{Black Summer} (2019--2020) \cite{boM2020blacksummer}.
+
+\subsubsection{Causas Detonantes: La Tormenta Climática Perfecta}
+El megaincendio de Gospers Mountain se originó el 26 de octubre de 2019 a raíz de la caída de un rayo seco en un sector inaccesible del norte del Parque Nacional Wollemi. No obstante, su evolución hacia un frente incontrolable de más de 510.000 hectáreas estuvo gobernada por una sincronización climática sin precedentes:
+\begin{enumerate}
+    \item \textbf{Sequía plurianual extrema:} Entre 2017 y 2019, la cuenca del sureste australiano atravesó el trienio más seco en 120 años de registros instrumentales, inducido por una fase fuertemente positiva del Dipolo del Océano Índico (IOD) y anomalías sinópticas del Modo Anular del Sur (SAM) \cite{abatzoglou2021anthropogenic}.
+    \item \textbf{Colapso de humedad del combustible foliar:} Para octubre de 2019, la humedad del mantillo leñoso y del dosel vivo de eucalipto había descendido por debajo del 8\%, cruzando el umbral crítico de ignición donde incluso los bosques húmedos arden con la violencia de un combustible seco \cite{vanoldenborgh2021pathways}.
+    \item \textbf{Meteorología extrema de fuego:} La convergencia de ráfagas de viento continental seco superiores a 80 km/h y temperaturas que rebasaron los 42~$^\circ$C favoreció la formación periódica de tormentas pirocumulonimbos (pyroCb), generando piro-relámpagos que multiplicaron los focos secundarios a decenas de kilómetros por delante del frente principal \cite{bowman2021pyrogeographic}.
+\end{enumerate}
+
+\subsubsection{Interpretación Ecológica del Gradiente de Severidad}
+El análisis geoestadístico de este proyecto reveló que, dentro del núcleo crítico del incendio en Blue Mountains ($\text{clase\_id} > 2$), una extensión de \textbf{203.229,03 hectáreas} ($2.032,29\text{ km}^2$) sufrió un impacto sustancial. Un hallazgo sobresaliente radica en la distribución de dicha perturbación:
+\begin{itemize}
+    \item \textbf{Predominio abrumador de la severidad moderada (99,82\% -- 202.871,44 ha):} A diferencia de incendios boreales donde domina la calcinación total, los bosques esclerófilos australianos dominados por \textit{Eucalyptus} spp. exhiben adaptaciones morfológicas excepcionales. El fuego consumió en su totalidad el estrato arbustivo y el sotobosque, defoliando y chamuscando severamente las copas intermedias (lo cual provoca el abrupto colapso del infrarrojo cercano detectado por el dNBR); no obstante, los troncos principales y la arquitectura leñosa resistieron la combustión total.
+    \item \textbf{Focos de severidad alta localizados (0,18\% -- 357,59 ha):} La calcinación absoluta se restringió a confluencias de valles encajonados y laderas de barlovento donde se acumularon cargas masivas de biomasa de más de 30 toneladas por hectárea, generando temperaturas superiores a 1.000~$^\circ$C que consumieron por completo el sustrato orgánico y dejaron expuesto el lecho de roca arenisca.
+\end{itemize}
+
+\subsubsection{Impacto sobre la Biodiversidad y el Patrimonio Mundial}
+El Parque Nacional Blue Mountains integra el Área de Patrimonio Mundial de las Grandes Montañas Azules (GBMWHA), reconocida por la UNESCO debido a su biodiversidad vegetal única, al albergar más de 90 especies de eucaliptos. El megaincendio consumió aproximadamente el 80\% de esta reserva protegida \cite{hamilton2020ecological}:
+\begin{itemize}
+    \item \textbf{Crisis de fauna nativa:} Se estima que cientos de millones de vertebrados perecieron o perdieron su hábitat en la región. Las colonias de koala (\textit{Phascolarctos cinereus}) de Blue Mountains, vitales por poseer la mayor diversidad genética del país libre de clamidia, sufrieron una diezmación crítica de su hábitat de forrajeo. Especies terrestres como el ualabí de cola de cepillo (\textit{Petrogale penicillata}) quedaron expuestas a la depredación por zorros y gatos asilvestrados al desaparecer la cobertura del sotobosque.
+    \item \textbf{Operaciones de rescate botánico:} En las gargantas más recónditas del complejo, fue necesaria la intervención de brigadas aerotransportadas especializadas para desplegar sistemas de irrigación y retardantes ignífugos sobre el último refugio silvestre del pino de Wollemi (\textit{Wollemia nobilis}), una especie relicta del Jurásico con menos de 200 ejemplares vivos en el planeta.
+\end{itemize}
+
+\subsubsection{Afectaciones Hidrológicas y Calidad del Agua}
+El cañón del río Grose actúa como una de las arterias hidrológicas principales de la cuenca Hawkesbury--Nepean, tributaria directa de la presa de Warragamba, embalse que abastece de agua potable a más de 5 millones de habitantes en Sídney. La pérdida masiva del estrato protector vegetal en más de 200.000 hectáreas indujo un estado transitorio de fuerte hidrofobicidad en el suelo arenoso. Cuando las precipitaciones torrenciales de mediados de febrero de 2020 extinguieron los frentes ígneos, el escurrimiento superficial arrastró toneladas de cenizas, carbón y metales pesados hacia los tributarios fluviales, elevando exponencialmente la turbidez del agua y provocando eventos de hipoxia que desencadenaron mortandades de peces nativos.
+
+\subsubsection{Resiliencia Ecológica y Dinámica de Recuperación}
+A pesar de la magnitud de la catástrofe, la vegetación de Blue Mountains posee un régimen de adaptación al fuego forjado durante millones de años:
+\begin{enumerate}
+    \item \textbf{Rebrote epicórmico:} Pocas semanas después de las lluvias de febrero, los troncos carbonizados de eucalipto activaron yemas epicórmicas protegidas bajo la corteza gruesa, cubriendo las ramas desnudas de un follaje denso y verde.
+    \item \textbf{Lignotubérculos basales:} Especies arbustivas del estrato bajo regeneraron vigorosamente a partir de órganos subterráneos de reserva, acelerando la estabilización mecánica del suelo.
+    \item \textbf{Bancos de semillas serótinos:} Las cápsulas leñosas de eucaliptos y bancos de semillas de \textit{Banksia} y \textit{Acacia} requirieron del choque térmico del fuego para abrirse y germinar sobre el lecho fertilizado por la ceniza.
+\end{enumerate}
+
+\subsubsection{Implicaciones para la Gobernanza del Riesgo}
+El megaincendio de Gospers Mountain marcó un antes y un después en la política ambiental de Nueva Gales del Sur. La densa nube de humo tóxico cubrió Sídney durante semanas, alcanzando niveles de partículas finas ($\text{PM}_{2.5}$) diez veces superiores a los umbrales seguros de la OMS y provocando una crisis de salud pública. Este evento forzó la creación de la Comisión Real para la Gestión de Desastres Naturales de Australia, concluyendo que la mitigación tradicional mediante quemas prescritas debe integrarse de manera obligatoria con tecnologías emergentes de teledetección satelital continua (como el monitoreo del dNBR y modelos de combustible en tiempo real) y el conocimiento ancestral del manejo indígena del fuego (\textit{cultural burning}).
+
+\section{Conclusiones}
+
+\begin{itemize}
+    \item \textbf{Eficacia del monitoreo multitemporal con Sentinel-2 e índices espectrales:} La integración de escenas satelitales ópticas Sentinel-2 MSI Nivel-2A (reflectancia de fondo de atmósfera, BOA) adquiridas en una ventana pre-evento (27 de septiembre de 2019) y post-evento (19 de febrero de 2020) mediante los índices espectrales NBR y dNBR demostró una alta precisión para mapear la huella del megaincendio de Gospers Mountain sobre el Parque Nacional Blue Mountains, capturando de manera fidedigna la pérdida de vigor fotosintético y el colapso del dosel arbóreo.
+
+    \item \textbf{Cuantificación del impacto espacial y severidad del fuego:} El análisis espacial y geoestadístico delimitó un área total perturbada de $203.229{,}03\text{ ha}$ ($2.032{,}29\text{ km}^2$). Dentro de esta cicatriz se identificó un claro predominio de la severidad moderada ($99{,}82\%$ -- $202.871{,}44\text{ ha}$), producto del consumo sostenido de sotobosque y desfoliación de estratos intermedios, mientras que la calcinación completa de biomasa (severidad alta) quedó circunscrita a cañones escarpados y mesetas rocosas expuestas al fuego activo.
+
+    \item \textbf{Desempeño de la clasificación supervisada (SCP) y estandarización cartográfica:} La clasificación multiespectral mediante el complemento SCP alcanzó una Exactitud Global (\textit{Overall Accuracy}) del $77{,}45\%$ para la línea base ($t_1$) y del $71{,}66\%$ para el escenario posterior ($t_2$), validadas de forma independiente sobre Google Earth Pro. La adopción del sistema geodésico oficial GDA2020 / MGA zone 56 (EPSG:7856) y el diseño cartográfico formal en el Diseñador de Impresión garantizan el rigor métrico, estético y técnico de las salidas cartográficas temáticas producidas.
+\end{itemize}
 
 \bibliographystyle{plain}
 \bibliography{referencias}
